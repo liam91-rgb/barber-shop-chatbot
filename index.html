@@ -5,55 +5,89 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Assistant Barber Shop</title>
+
 <style>
 * { box-sizing: border-box; }
+
 body {
   margin: 0;
-  padding: 25px;
+  padding: 20px;
   font-family: Arial, sans-serif;
   background: linear-gradient(135deg, #dcecf8, #f3b6a5);
   color: #263746;
 }
+
 .chat {
   max-width: 620px;
-  margin: 35px auto;
+  margin: 25px auto;
   background: #fffaf7;
   border-radius: 18px;
   overflow: hidden;
   box-shadow: 0 8px 30px #34495e25;
 }
+
 header {
   background: #263746;
   color: white;
   padding: 22px;
 }
+
 header h1 { margin: 0 0 6px; font-size: 22px; }
-header p { margin: 0; opacity: .8; }
+header p { margin: 0; opacity: .85; }
+
 #messages {
   height: 390px;
   overflow-y: auto;
   padding: 18px;
 }
+
 .message {
-  max-width: 85%;
+  max-width: 88%;
   padding: 12px 15px;
   margin: 10px 0;
   border-radius: 14px;
-  line-height: 1.45;
+  line-height: 1.5;
   white-space: pre-line;
+  overflow-wrap: anywhere;
 }
+
 .bot { background: #edf1f4; }
 .user {
   background: #263746;
   color: white;
   margin-left: auto;
 }
+
+.quick-questions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 0 15px 14px;
+}
+
+.quick-questions button,
+.action-button {
+  border: 1px solid #263746;
+  border-radius: 18px;
+  padding: 9px 12px;
+  background: white;
+  color: #263746;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.quick-questions button:hover,
+.action-button:hover {
+  background: #e9eef2;
+}
+
 form {
   display: flex;
   gap: 8px;
   padding: 14px;
   border-top: 1px solid #ddd;
 }
+
 input {
   flex: 1;
   min-width: 0;
@@ -62,15 +96,33 @@ input {
   border-radius: 10px;
   font-size: 15px;
 }
-button {
+
+form button {
   border: 0;
   border-radius: 10px;
-  padding: 0 18px;
+  padding: 0 17px;
   background: #263746;
   color: white;
   cursor: pointer;
 }
-button:hover { opacity: .85; }
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.actions a {
+  display: inline-block;
+  text-decoration: none;
+  border-radius: 10px;
+  padding: 10px 13px;
+  background: #263746;
+  color: white;
+  font-size: 13px;
+}
+
 .hint {
   text-align: center;
   font-size: 12px;
@@ -79,29 +131,88 @@ button:hover { opacity: .85; }
 }
 </style>
 </head>
+
 <body>
+
 <div class="chat">
   <header>
-    <h1>Assistant Barber Shop</h1>
+    <h1 id="salonTitle">Assistant Barber Shop</h1>
     <p>Bienvenue ! Comment puis-je vous aider ?</p>
   </header>
 
   <div id="messages" aria-live="polite">
     <div class="message bot">
-      Bonjour ! Je suis l'assistant virtuel de Barber Shop.
+      Bonjour ! Je suis l'assistant virtuel du salon.
       Vous pouvez me poser vos questions sur les tarifs,
-      les horaires ou les réservations.
+      les horaires, les prestations et les réservations.
     </div>
   </div>
 
+  <div class="quick-questions">
+    <button type="button" data-question="Quels sont vos tarifs ?">Tarifs</button>
+    <button type="button" data-question="Quels sont vos horaires ?">Horaires</button>
+    <button type="button" data-question="Comment réserver ?">Réservation</button>
+    <button type="button" data-question="Combien de temps dure une coupe ?">Durée</button>
+  </div>
+
   <form id="chatForm">
-    <input id="question" placeholder="Écrivez votre question..." autocomplete="off" required>
+    <input id="question"
+      placeholder="Écrivez votre question..."
+      autocomplete="off"
+      required>
     <button type="submit">Envoyer</button>
   </form>
-  <div class="hint">Assistant automatique • Barber Shop</div>
+
+  <div class="hint">Assistant automatique • Informations du salon</div>
 </div>
 
 <script>
+
+/* ==================================
+   CONFIGURATION DU SALON
+   À MODIFIER POUR CHAQUE CLIENT
+================================== */
+
+const CONFIG = {
+  salonName: "Barber Shop",
+
+  openingDays: "Du mardi au samedi",
+  openingHours: "9 h à 18 h",
+
+  services: [
+    {
+      name: "Coupe enfant",
+      price: "15 €",
+      duration: "30 minutes",
+      bookingUrl: ""
+    },
+    {
+      name: "Dégradé classique",
+      price: "20 €",
+      duration: "30 minutes",
+      bookingUrl: ""
+    },
+    {
+      name: "Dégradé à blanc",
+      price: "25 €",
+      duration: "30 minutes",
+      bookingUrl: ""
+    }
+  ],
+
+  paymentMethods: "",
+  walkIns: "",
+  phone: "",
+  address: ""
+};
+
+/* ==================================
+   AFFICHAGE
+================================== */
+
+document.getElementById("salonTitle").textContent =
+  "Assistant " + CONFIG.salonName;
+
 const messages = document.getElementById("messages");
 const form = document.getElementById("chatForm");
 const input = document.getElementById("question");
@@ -114,66 +225,227 @@ function addMessage(text, type) {
   messages.scrollTop = messages.scrollHeight;
 }
 
-function getAnswer(question) {
-  const q = question.toLowerCase()
+function addAction(label, url) {
+  if (!url) return;
+
+  const container = document.createElement("div");
+  container.className = "actions";
+
+  const link = document.createElement("a");
+  link.textContent = label;
+  link.href = url;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+
+  container.appendChild(link);
+  messages.appendChild(container);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function normalize(text) {
+  return text
+    .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[’']/g, " ")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
-  if (/bonjour|salut|bonsoir|hello/.test(q)) {
-    return "Bonjour et bienvenue chez Barber Shop ! Que souhaitez-vous savoir ?";
+/* ==================================
+   RECONNAISSANCE DES QUESTIONS
+================================== */
+
+function containsAny(text, words) {
+  return words.some(word => text.includes(normalize(word)));
+}
+
+function getAnswer(question) {
+  const q = normalize(question);
+
+  if (!q) {
+    return "Pouvez-vous reformuler votre question ?";
   }
 
-  if (/prix|tarif|combien|coute|coût/.test(q)) {
-    return "Voici nos tarifs :\n• Coupe enfant : 15 €\n• Dégradé classique : 20 €\n• Dégradé à blanc : 25 €.";
+  // Salutations
+  if (containsAny(q, [
+    "bonjour", "salut", "bonsoir", "hello", "coucou"
+  ])) {
+    return "Bonjour et bienvenue chez " + CONFIG.salonName +
+      " ! Que souhaitez-vous savoir ?";
   }
 
-  if (/enfant/.test(q)) {
-    return "La coupe enfant coûte 15 € et dure 30 minutes.";
+  // Adresse
+  if (containsAny(q, [
+    "adresse", "ou se trouve", "ou etes vous",
+    "localisation", "situe", "venir au salon"
+  ])) {
+    return CONFIG.address
+      ? "Voici l'adresse du salon : " + CONFIG.address
+      : "Je ne connais pas encore l'adresse du salon. Veuillez contacter directement le magasin.";
   }
 
-  if (/blanc/.test(q)) {
-    return "Le dégradé à blanc coûte 25 € et dure 30 minutes.";
+  // Téléphone
+  if (containsAny(q, [
+    "telephone", "numero", "appeler", "contact"
+  ])) {
+    return CONFIG.phone
+      ? "Vous pouvez contacter le salon au " + CONFIG.phone + "."
+      : "Les coordonnées téléphoniques ne sont pas encore renseignées. Veuillez contacter directement le salon par ses autres moyens de contact.";
   }
 
-  if (/classique|degrade/.test(q)) {
-    return "Le dégradé classique coûte 20 € et dure 30 minutes.";
+  // Horaires
+  if (containsAny(q, [
+    "horaire", "ouvert", "ouvre", "ferme",
+    "fermeture", "heure", "jour", "dimanche",
+    "samedi", "lundi", "demain"
+  ])) {
+    return "Les horaires renseignés sont : " +
+      CONFIG.openingDays + ", de " +
+      CONFIG.openingHours + ".";
   }
 
-  if (/horaire|ouvre|ouvert|ferme|fermeture|heure|jour/.test(q)) {
-    return "Les horaires prévus sont du mardi au samedi, de 9 h à 18 h. Vérifiez ces horaires auprès du salon avant votre venue.";
-  }
-
-  if (/reservation|reserver|rendez-vous|rendez vous|disponible|creneau/.test(q)) {
-    return "Pour réserver, retournez sur le site Barber Shop et cliquez sur « Choisir » à côté de la coupe souhaitée. Chaque rendez-vous dure 30 minutes.";
-  }
-
-  if (/duree|longtemps|temps/.test(q)) {
+  // Durée
+  if (containsAny(q, [
+    "duree", "combien de temps", "longtemps",
+    "temps dure", "minutes", "rapide"
+  ])) {
     return "Chaque prestation est prévue pour un rendez-vous de 30 minutes.";
   }
 
-  if (/adresse|localisation|situe|trouver/.test(q)) {
-    return "Je n'ai pas encore l'adresse du salon. Veuillez contacter directement Barber Shop pour la connaître.";
+  // Paiement
+  if (containsAny(q, [
+    "paiement", "payer", "carte bancaire",
+    "especes", "cash", "sans contact",
+    "cheque", "moyen de paiement"
+  ])) {
+    return CONFIG.paymentMethods
+      ? "Voici les moyens de paiement acceptés : " + CONFIG.paymentMethods
+      : "Je ne dispose pas encore des informations sur les moyens de paiement acceptés. Veuillez contacter directement le salon.";
   }
 
-  if (/merci/.test(q)) {
-    return "Avec plaisir ! À bientôt chez Barber Shop.";
+  // Sans rendez-vous
+  if (containsAny(q, [
+    "sans rendez vous", "sans reservation",
+    "venir directement", "venir sans",
+    "acceptez vous sans", "spontanement"
+  ])) {
+    return CONFIG.walkIns
+      ? CONFIG.walkIns
+      : "Je ne connais pas encore les conditions d'accueil sans rendez-vous. Le mieux est de contacter directement le salon.";
   }
 
-  return "Je ne connais pas encore la réponse à cette question. Pour obtenir une information fiable, contactez directement le salon.";
+  // Réservation
+  if (containsAny(q, [
+    "reservation", "reserver", "rendez vous",
+    "prendre rendez vous", "prendre rdv",
+    "creneau", "disponibilite", "disponible",
+    "booker"
+  ])) {
+    return "Pour réserver, choisissez la prestation souhaitée dans la rubrique Réservation en ligne, puis cliquez sur « Choisir ». Chaque rendez-vous dure 30 minutes.";
+  }
+
+  // Prix général
+  if (containsAny(q, [
+    "prix", "tarif", "combien coute",
+    "combien ca coute", "budget",
+    "combien prevoir", "payer pour"
+  ])) {
+    return "Voici nos tarifs :\n" +
+      CONFIG.services.map(s => "• " + s.name + " : " + s.price).join("\n");
+  }
+
+  // Reconnaissance des prestations
+  const childWords = [
+    "enfant", "petit garcon", "petite fille",
+    "coupe enfant", "mon fils", "ma fille"
+  ];
+
+  const classicWords = [
+    "classique", "degrade classique",
+    "degrade normal", "degrade simple"
+  ];
+
+  const whiteWords = [
+    "a blanc", "blanc", "zero",
+    "degrade blanc", "degrade a blanc"
+  ];
+
+  if (containsAny(q, childWords)) {
+    return "La coupe enfant coûte " +
+      CONFIG.services[0].price +
+      " et dure " + CONFIG.services[0].duration + ".";
+  }
+
+  if (containsAny(q, whiteWords)) {
+    return "Le dégradé à blanc coûte " +
+      CONFIG.services[2].price +
+      " et dure " + CONFIG.services[2].duration + ".";
+  }
+
+  if (containsAny(q, classicWords)) {
+    return "Le dégradé classique coûte " +
+      CONFIG.services[1].price +
+      " et dure " + CONFIG.services[1].duration + ".";
+  }
+
+  // Prestations générales
+  if (containsAny(q, [
+    "coupe", "prestation", "faites vous",
+    "proposez vous", "service", "cheveux",
+    "coiffez"
+  ])) {
+    return "Nous proposons :\n" +
+      CONFIG.services.map(s =>
+        "• " + s.name + " : " + s.price +
+        " (" + s.duration + ")"
+      ).join("\n");
+  }
+
+  // Remerciements
+  if (containsAny(q, [
+    "merci", "super merci", "parfait merci"
+  ])) {
+    return "Avec plaisir ! À bientôt chez " +
+      CONFIG.salonName + ".";
+  }
+
+  // Réponse de secours
+  return "Je suis désolé, je ne connais pas encore la réponse à cette question.\n\nPour obtenir une information fiable, veuillez contacter directement le salon. Ses coordonnées seront bientôt disponibles.";
+}
+
+/* ==================================
+   GESTION DE LA DISCUSSION
+================================== */
+
+function sendQuestion(question) {
+  const cleanQuestion = question.trim();
+  if (!cleanQuestion) return;
+
+  addMessage(cleanQuestion, "user");
+
+  const answer = getAnswer(cleanQuestion);
+
+  setTimeout(() => {
+    addMessage(answer, "bot");
+  }, 250);
 }
 
 form.addEventListener("submit", function(event) {
   event.preventDefault();
-  const question = input.value.trim();
-  if (!question) return;
 
-  addMessage(question, "user");
+  sendQuestion(input.value);
   input.value = "";
-
-  setTimeout(function() {
-    addMessage(getAnswer(question), "bot");
-  }, 350);
+  input.focus();
 });
+
+document.querySelectorAll("[data-question]").forEach(button => {
+  button.addEventListener("click", () => {
+    sendQuestion(button.dataset.question);
+  });
+});
+
 </script>
 </body>
 </html>
